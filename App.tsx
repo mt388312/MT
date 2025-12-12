@@ -297,30 +297,46 @@ const App: React.FC = () => {
           <div className="flex-1 flex overflow-hidden">
             
             {/* Left Toolbar / Modes (Simplified vertical strip) */}
-            <div className="w-10 bg-[#1e1e1e] border-r border-neutral-700 flex flex-col items-center py-2 space-y-4 text-neutral-400">
-               <div className="p-2 rounded bg-orange-500/20 text-orange-500 cursor-pointer"><svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg></div>
-               <div className="p-2 rounded hover:bg-[#333] cursor-pointer"><svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M14 6l-3.75 5 2.85 3.8-1.6 1.2C9.81 13.75 7 10 7 10l-6 8h22L14 6z"/></svg></div>
-               <div className="p-2 rounded hover:bg-[#333] cursor-pointer"><svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 9h-2V7h-2v5H6v2h2v5h2v-5h2v-2z"/></svg></div>
+            <div className="w-12 bg-[#1e1e1e] border-r border-black flex flex-col items-center py-2 space-y-2 text-neutral-400 z-10">
+               <div className="p-2 rounded bg-neutral-800 text-orange-500 cursor-pointer border-l-2 border-orange-500" title="Select Mode">
+                   <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M7 2L20 13H13V22L7 2Z"/></svg>
+               </div>
+               <div className="p-2 rounded hover:bg-[#333] cursor-pointer hover:text-neutral-200 transition-colors" title="Landscape Mode">
+                   <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M14 6l-3.75 5 2.85 3.8-1.6 1.2C9.81 13.75 7 10 7 10l-6 8h22L14 6z"/></svg>
+               </div>
+               <div className="p-2 rounded hover:bg-[#333] cursor-pointer hover:text-neutral-200 transition-colors" title="Foliage Mode">
+                   <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 2C7 2 3 7 3 12c0 5 7 10 7 10s4-6 4-10c0-2-2-4-2-4s2 1 2 4c0 1-1 2-2 3 0-5 2-7 5-7 2 0 3 2 3 5 0 2-2 5-2 5s5-3 5-7c0-4-6-9-11-9z"/></svg>
+               </div>
+               <div className="p-2 rounded hover:bg-[#333] cursor-pointer hover:text-neutral-200 transition-colors" title="Mesh Paint Mode">
+                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 9h-2V7h-2v5H6v2h2v5h2v-5h2v-2z"/></svg>
+               </div>
+               <div className="h-[1px] w-8 bg-neutral-700 my-2"></div>
+               <div className="p-2 rounded hover:bg-[#333] cursor-pointer hover:text-neutral-200 transition-colors" title="Cube Grid">
+                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M21 16.5c0 .38-.21.71-.53.88l-7.9 4.44c-.16.12-.36.18-.57.18-.21 0-.41-.06-.57-.18l-7.9-4.44A.991.991 0 0 1 3 16.5v-9c0-.38.21-.71.53-.88l7.9-4.44c.16-.12.36-.18.57-.18.21 0 .41.06.57.18l7.9 4.44c.32.17.53.5.53.88v9zM12 4.15L6.04 7.5 12 10.85l5.96-3.35L12 4.15z"/></svg>
+               </div>
             </div>
 
             {/* Center Viewport */}
             <div className="flex-1 flex flex-col relative">
                {/* AI Prompt Overlay */}
                {!isPlaying && (
-                   <div className="absolute top-10 left-1/2 transform -translate-x-1/2 z-20 w-96 max-w-full">
-                      <div className="bg-[#111]/90 backdrop-blur border border-neutral-600 rounded-lg p-1 flex shadow-2xl">
+                   <div className="absolute top-10 left-1/2 transform -translate-x-1/2 z-20 w-[32rem] max-w-full">
+                      <div className="bg-[#111]/90 backdrop-blur-md border border-neutral-600 rounded-lg p-1.5 flex shadow-2xl items-center">
+                         <div className="text-orange-500 px-2">
+                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>
+                         </div>
                          <input 
                            type="text" 
                            value={prompt}
                            onChange={(e) => setPrompt(e.target.value)}
-                           placeholder="Describe a level to generate... (e.g. 'A stone circle with 5 candles')"
-                           className="bg-transparent text-xs text-white p-2 flex-1 focus:outline-none placeholder-neutral-500"
+                           placeholder="Describe a level... (e.g. 'Cyberpunk street with neon lights')"
+                           className="bg-transparent text-sm text-white p-2 flex-1 focus:outline-none placeholder-neutral-500 font-light"
                            onKeyDown={(e) => e.key === 'Enter' && handleGenerateLevel()}
                          />
                          <button 
                            onClick={handleGenerateLevel}
                            disabled={isAiLoading}
-                           className="bg-orange-600 hover:bg-orange-500 text-white text-xs px-3 py-1 rounded font-bold transition-colors disabled:opacity-50"
+                           className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white text-xs px-4 py-1.5 rounded font-bold transition-all disabled:opacity-50 uppercase tracking-wider"
                          >
                            {isAiLoading ? 'Busy...' : 'Generate'}
                          </button>
@@ -336,19 +352,19 @@ const App: React.FC = () => {
                />
                
                {/* Bottom Content Browser / Console Split */}
-               <div className="h-64 border-t border-neutral-700 flex">
-                  <div className="flex-1 border-r border-neutral-700">
+               <div className="h-72 border-t border-black flex">
+                  <div className="flex-1 border-r border-black">
                       <ContentBrowser />
                   </div>
-                  <div className="w-1/3">
+                  <div className="w-1/3 min-w-[300px]">
                       <Console logs={logs} />
                   </div>
                </div>
             </div>
 
             {/* Right Sidebar */}
-            <div className="w-80 border-l border-neutral-700 flex flex-col bg-[#1a1a1a]">
-               <div className="h-1/2 border-b border-neutral-700">
+            <div className="w-80 border-l border-black flex flex-col bg-[#1a1a1a]">
+               <div className="h-1/2 border-b border-black">
                   <Outliner actors={actors} onSelect={handleSelectActor} />
                </div>
                <div className="h-1/2">
@@ -359,11 +375,11 @@ const App: React.FC = () => {
           </div>
 
           {/* Footer Status Bar */}
-          <div className="h-6 bg-[#2e2e2e] text-[10px] text-neutral-400 flex items-center px-2 space-x-4 border-t border-neutral-600">
-             <span>{isPlaying ? 'PLAYING IN EDITOR' : 'Ready'}</span>
+          <div className="h-6 bg-[#262626] text-[10px] text-neutral-400 flex items-center px-2 space-x-4 border-t border-black font-medium">
+             <span className="text-green-500">{isPlaying ? '● PLAYING IN EDITOR' : '○ Ready'}</span>
              <span className="flex-1"></span>
-             <span>Source Control: Off</span>
-             <span>Compiling Shaders (2,403 left)...</span>
+             <span>Source Control: <span className="text-neutral-500">Off</span></span>
+             <span>Compiling Shaders: <span className="text-neutral-500">Finished</span></span>
           </div>
          </>
       ) : (
