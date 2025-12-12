@@ -24,6 +24,7 @@ export interface Actor {
   color: string;
   selected: boolean;
   script?: string; // Generated script content
+  scriptLanguage?: string; // e.g., 'cpp', 'js', 'python'
 }
 
 export interface LevelState {
@@ -37,4 +38,12 @@ export interface LogMessage {
   timestamp: string;
   text: string;
   type: 'info' | 'warning' | 'error' | 'success';
+}
+
+export enum ProjectTemplate {
+  GAME = 'Game',
+  ANIMATION = 'Animation',
+  VIDEO = 'Video',
+  PROGRAM = 'Program',
+  BLANK = 'Blank',
 }

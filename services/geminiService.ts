@@ -9,7 +9,7 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 export const generateLevelFromPrompt = async (prompt: string): Promise<Actor[]> => {
   const systemInstruction = `
     You are a Level Designer for a game engine. 
-    The user will describe a scene (e.g., "A forest with 3 trees and a rock").
+    The user will describe a scene (e.g., "A dungeon with a locked door and a guard").
     You must return a JSON object containing an array of actors to populate the scene.
     
     Coordinate System:
@@ -19,10 +19,20 @@ export const generateLevelFromPrompt = async (prompt: string): Promise<Actor[]> 
     scale: 0.5 to 5 (Size)
     rotation: 0 to 360 (Degrees)
     
-    Available Types: StaticMesh, PointLight, Camera, PlayerStart, Blueprint.
-    Use "StaticMesh" for generic objects.
-    
-    Colors should be hex codes appropriate for the object (e.g., green for tree, grey for rock).
+    Available Types: 
+    - StaticMesh (Generic objects, walls, floors)
+    - PointLight (Light sources)
+    - Camera
+    - PlayerStart (Spawn point)
+    - Blueprint (Generic logic)
+    - Character (The playable character or NPCs)
+    - Door (Interactive door that opens/closes)
+
+    Rules:
+    1. Use "StaticMesh" for generic objects.
+    2. Use "Character" for the main player or NPCs. **Always include at least one Character so the user can control it.**
+    3. Use "Door" for doors.
+    4. Colors should be hex codes appropriate for the object.
   `;
 
   try {
@@ -42,7 +52,7 @@ export const generateLevelFromPrompt = async (prompt: string): Promise<Actor[]> 
                 properties: {
                   name: { type: Type.STRING },
                   type: { type: Type.STRING, enum: [
-                    'StaticMesh', 'PointLight', 'Camera', 'PlayerStart', 'Blueprint'
+                    'StaticMesh', 'PointLight', 'Camera', 'PlayerStart', 'Blueprint', 'Character', 'Door'
                   ]},
                   x: { type: Type.NUMBER },
                   y: { type: Type.NUMBER },
@@ -85,11 +95,11 @@ export const generateLevelFromPrompt = async (prompt: string): Promise<Actor[]> 
   }
 };
 
-export const generateActorScript = async (actorName: string, behaviorDescription: string): Promise<string> => {
+export const generateActorScript = async (actorName: string, behaviorDescription: string, language: string = 'C++'): Promise<string> => {
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: `Write a pseudo-C++ / Blueprint script for an actor named "${actorName}". Behavior: ${behaviorDescription}. Keep it short and concise, suitable for a game engine tooltip or preview.`,
+      contents: `Write a ${language} script/code for an actor named "${actorName}". Behavior: ${behaviorDescription}. Keep it short and concise, suitable for a game engine tooltip or preview. Return ONLY code.`,
     });
     return response.text || "// No script generated.";
   } catch (error) {

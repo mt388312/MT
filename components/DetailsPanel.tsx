@@ -1,11 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Actor, ActorType } from '../types';
+import React, { useState } from 'react';
+import { Actor } from '../types';
 import { generateActorScript } from '../services/geminiService';
 
 interface DetailsPanelProps {
   actor: Actor | null;
   onUpdate: (actor: Actor) => void;
 }
+
+const LANGUAGES = [
+    'C++', 'Blueprint', 'JavaScript', 'Python', 'C#', 'Lua', 'GLSL', 'HLSL', 'Swift', 'Go', 'Rust', 'Ruby', 'Java', 'PHP', 'TypeScript'
+];
 
 export const DetailsPanel: React.FC<DetailsPanelProps> = ({ actor, onUpdate }) => {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -34,7 +38,8 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({ actor, onUpdate }) =
 
   const handleGenerateScript = async () => {
     setIsGenerating(true);
-    const script = await generateActorScript(actor.name, `Standard behavior for a ${actor.type} in a game.`);
+    const lang = actor.scriptLanguage || 'C++';
+    const script = await generateActorScript(actor.name, `Standard behavior for a ${actor.type} in a game.`, lang);
     onUpdate({ ...actor, script });
     setIsGenerating(false);
   };
@@ -115,6 +120,17 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({ actor, onUpdate }) =
                 <svg className="w-3 h-3 text-blue-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm-1 15h-2v-2h2zm0-4h-2V7h2z"/></svg>
             </div>
             
+            <div className="flex items-center space-x-2">
+                <span className="text-neutral-500 w-16">Language:</span>
+                <select 
+                    value={actor.scriptLanguage || 'C++'} 
+                    onChange={(e) => handleChange('scriptLanguage', e.target.value)}
+                    className="flex-1 bg-[#151515] border border-neutral-700 text-neutral-300 p-1 rounded focus:outline-none focus:border-blue-500"
+                >
+                    {LANGUAGES.map(lang => <option key={lang} value={lang}>{lang}</option>)}
+                </select>
+            </div>
+
             <textarea 
                className="w-full h-32 bg-[#111] border border-neutral-700 p-2 font-mono text-[10px] text-green-400 resize-none focus:outline-none"
                value={actor.script || '// Click Generate to create AI script...'}
@@ -131,7 +147,7 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({ actor, onUpdate }) =
                ) : (
                    <>
                        <span className="text-lg">✨</span>
-                       <span>Generate C++ Script</span>
+                       <span>Generate {actor.scriptLanguage || 'C++'} Script</span>
                    </>
                )}
             </button>

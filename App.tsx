@@ -5,32 +5,37 @@ import { Outliner } from './components/Outliner';
 import { DetailsPanel } from './components/DetailsPanel';
 import { ContentBrowser } from './components/ContentBrowser';
 import { Console } from './components/Console';
-import { Actor, LogMessage, ActorType } from './types';
+import { ProjectHub } from './components/ProjectHub';
+import { Actor, LogMessage, ActorType, ProjectTemplate } from './types';
 import { INITIAL_ACTORS } from './constants';
 import { generateLevelFromPrompt } from './services/geminiService';
 
 const App: React.FC = () => {
+  const [projectLoaded, setProjectLoaded] = useState(false);
   const [actors, setActors] = useState<Actor[]>(INITIAL_ACTORS);
   const [selectedActorId, setSelectedActorId] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogMessage[]>([]);
   const [prompt, setPrompt] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
+  
+  // Game State
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // Refs for Game Loop
   const actorsRef = useRef(actors);
+  const isPlayingRef = useRef(isPlaying);
   const keysRef = useRef<Set<string>>(new Set());
   const requestRef = useRef<number | undefined>(undefined);
   const previousTimeRef = useRef<number | undefined>(undefined);
   const playerVelocityZRef = useRef<number>(0);
   const isJumpingRef = useRef<boolean>(false);
 
-  useEffect(() => {
-    actorsRef.current = actors;
-  }, [actors]);
+  // Sync refs
+  useEffect(() => { actorsRef.current = actors; }, [actors]);
+  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
 
   useEffect(() => {
     addLog('WebUnreal 5 Engine initialized.', 'info');
-    addLog('Controls: WASD to Move, Space to Jump.', 'success');
 
     const handleKeyDown = (e: KeyboardEvent) => keysRef.current.add(e.code);
     const handleKeyUp = (e: KeyboardEvent) => keysRef.current.delete(e.code);
@@ -47,6 +52,31 @@ const App: React.FC = () => {
     };
   }, []);
 
+  const handleTemplateSelect = (template: ProjectTemplate) => {
+      // Seed initial actors based on template
+      let seedActors: Actor[] = [];
+      const createId = () => Math.random().toString(36).substr(2, 9);
+      
+      if (template === ProjectTemplate.BLANK) {
+          seedActors = [
+            { id: createId(), name: 'Floor', type: ActorType.STATIC_MESH, transform: { x: 400, y: 300, z: 0, rotation: 0, scale: 20 }, color: '#222', selected: false },
+            { id: createId(), name: 'Sun', type: ActorType.LIGHT, transform: { x: 600, y: 100, z: 50, rotation: 0, scale: 1 }, color: '#eab308', selected: false },
+          ];
+      } else if (template === ProjectTemplate.ANIMATION) {
+          seedActors = [
+              ...INITIAL_ACTORS,
+              { id: createId(), name: 'CinematicCamera', type: ActorType.CAMERA, transform: { x: 200, y: 200, z: 10, rotation: -45, scale: 1.5 }, color: '#000', selected: false }
+          ];
+      } else {
+          // Default GAME or PROGRAM setup
+          seedActors = [...INITIAL_ACTORS];
+      }
+
+      setActors(seedActors);
+      setProjectLoaded(true);
+      addLog(`Project created using ${template} template.`, 'success');
+  };
+
   const gameLoop = (time: number) => {
     if (previousTimeRef.current !== undefined) {
         const delta = (time - previousTimeRef.current) / 1000;
@@ -57,9 +87,9 @@ const App: React.FC = () => {
   };
 
   const updatePhysics = (delta: number) => {
-      // Limit delta to prevent huge jumps if tab is inactive
+      if (!isPlayingRef.current) return; // Only simulate physics in Play Mode
+
       const dt = Math.min(delta, 0.1);
-      
       const currentActors = actorsRef.current;
       let hasChanges = false;
       const keys = keysRef.current;
@@ -175,11 +205,42 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDownloadProject = () => {
+      const projectData = {
+          version: '1.0',
+          timestamp: new Date().toISOString(),
+          actors: actors
+      };
+      const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `WebUnrealProject_${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      addLog('Project downloaded successfully.', 'success');
+  };
+
   const selectedActor = actors.find(a => a.id === selectedActorId) || null;
+
+  // Render Project Hub if not loaded
+  if (!projectLoaded) {
+      return <ProjectHub onSelectTemplate={handleTemplateSelect} />;
+  }
 
   return (
     <div className="flex flex-col h-screen w-screen bg-[#121212] overflow-hidden font-sans">
-      <TopToolbar />
+      <TopToolbar 
+          isPlaying={isPlaying} 
+          onTogglePlay={() => {
+              if (isPlaying) addLog('Simulation Stopped.', 'warning');
+              else addLog('Simulation Started. Controls active.', 'success');
+              setIsPlaying(!isPlaying);
+          }}
+          onDownload={handleDownloadProject}
+      />
 
       {/* Main Workspace Grid */}
       <div className="flex-1 flex overflow-hidden">
@@ -194,30 +255,33 @@ const App: React.FC = () => {
         {/* Center Viewport */}
         <div className="flex-1 flex flex-col relative">
            {/* AI Prompt Overlay */}
-           <div className="absolute top-10 left-1/2 transform -translate-x-1/2 z-20 w-96 max-w-full">
-              <div className="bg-[#111]/90 backdrop-blur border border-neutral-600 rounded-lg p-1 flex shadow-2xl">
-                 <input 
-                   type="text" 
-                   value={prompt}
-                   onChange={(e) => setPrompt(e.target.value)}
-                   placeholder="Describe a level to generate... (e.g. 'A stone circle with 5 candles')"
-                   className="bg-transparent text-xs text-white p-2 flex-1 focus:outline-none placeholder-neutral-500"
-                   onKeyDown={(e) => e.key === 'Enter' && handleGenerateLevel()}
-                 />
-                 <button 
-                   onClick={handleGenerateLevel}
-                   disabled={isAiLoading}
-                   className="bg-orange-600 hover:bg-orange-500 text-white text-xs px-3 py-1 rounded font-bold transition-colors disabled:opacity-50"
-                 >
-                   {isAiLoading ? 'Busy...' : 'Generate'}
-                 </button>
-              </div>
-           </div>
+           {!isPlaying && (
+               <div className="absolute top-10 left-1/2 transform -translate-x-1/2 z-20 w-96 max-w-full">
+                  <div className="bg-[#111]/90 backdrop-blur border border-neutral-600 rounded-lg p-1 flex shadow-2xl">
+                     <input 
+                       type="text" 
+                       value={prompt}
+                       onChange={(e) => setPrompt(e.target.value)}
+                       placeholder="Describe a level to generate... (e.g. 'A stone circle with 5 candles')"
+                       className="bg-transparent text-xs text-white p-2 flex-1 focus:outline-none placeholder-neutral-500"
+                       onKeyDown={(e) => e.key === 'Enter' && handleGenerateLevel()}
+                     />
+                     <button 
+                       onClick={handleGenerateLevel}
+                       disabled={isAiLoading}
+                       className="bg-orange-600 hover:bg-orange-500 text-white text-xs px-3 py-1 rounded font-bold transition-colors disabled:opacity-50"
+                     >
+                       {isAiLoading ? 'Busy...' : 'Generate'}
+                     </button>
+                  </div>
+               </div>
+           )}
 
            <Viewport 
              actors={actors} 
              onSelect={handleSelectActor} 
              onUpdatePosition={handleUpdatePosition} 
+             isPlaying={isPlaying}
            />
            
            {/* Bottom Content Browser / Console Split */}
@@ -245,7 +309,7 @@ const App: React.FC = () => {
 
       {/* Footer Status Bar */}
       <div className="h-6 bg-[#2e2e2e] text-[10px] text-neutral-400 flex items-center px-2 space-x-4 border-t border-neutral-600">
-         <span>Ready</span>
+         <span>{isPlaying ? 'PLAYING IN EDITOR' : 'Ready'}</span>
          <span className="flex-1"></span>
          <span>Source Control: Off</span>
          <span>Compiling Shaders (2,403 left)...</span>
