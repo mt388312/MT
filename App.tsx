@@ -6,18 +6,68 @@ import { DetailsPanel } from './components/DetailsPanel';
 import { ContentBrowser } from './components/ContentBrowser';
 import { Console } from './components/Console';
 import { ProjectHub } from './components/ProjectHub';
-import { Actor, LogMessage, ActorType, ProjectTemplate } from './types';
-import { INITIAL_ACTORS } from './constants';
+import { Marketplace } from './components/Marketplace';
+import { CodeEditor } from './components/CodeEditor';
+import { ExportWizard, ExportSettings } from './components/ExportWizard';
+import { Actor, LogMessage, ActorType, ProjectTemplate, ExtensionPack, FileSystemItem } from './types';
+import { INITIAL_ACTORS, INITIAL_FILE_SYSTEM } from './constants';
 import { generateLevelFromPrompt } from './services/geminiService';
+import JSZip from 'jszip';
+
+const AVAILABLE_PACKS: ExtensionPack[] = [
+    {
+        id: 'cpp',
+        name: 'C++ Pro Integration',
+        description: 'Enables creation and compilation of C++ classes. Includes IntelliSense and Hot Reload.',
+        icon: <span className="font-mono font-bold">C++</span>,
+        price: 'Free',
+        features: ['C++ Class Wizard', 'Compiler Access', 'Performance Profiler'],
+        installed: false
+    },
+    {
+        id: 'python',
+        name: 'Python Scripting',
+        description: 'Automate editor tasks and build pipelines using Python.',
+        icon: <span className="font-mono font-bold text-yellow-500">PY</span>,
+        price: '$49.99',
+        features: ['Python Console', 'Editor Scripting API', 'Automated Testing'],
+        installed: false
+    },
+    {
+        id: 'materials',
+        name: 'Material Lab',
+        description: 'Advanced material creation suite with node-based editing.',
+        icon: <span className="font-bold text-green-500">MAT</span>,
+        price: 'Free',
+        features: ['Material Instance Editor', 'Texture Streaming', 'Shader Profiler'],
+        installed: false
+    },
+    {
+        id: 'editor',
+        name: 'Advanced Code Editor',
+        description: 'A fully featured code editor within the engine. Syntax highlighting and formatting.',
+        icon: <span className="font-bold text-blue-400">IDE</span>,
+        price: '$19.99',
+        features: ['Monaco Integration', 'Theme Support', 'Minimap'],
+        installed: false
+    }
+];
 
 const App: React.FC = () => {
   const [projectLoaded, setProjectLoaded] = useState(false);
   const [actors, setActors] = useState<Actor[]>(INITIAL_ACTORS);
+  const [fileSystemItems, setFileSystemItems] = useState<FileSystemItem[]>(INITIAL_FILE_SYSTEM);
   const [selectedActorId, setSelectedActorId] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogMessage[]>([]);
   const [prompt, setPrompt] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   
+  // New State for Extensions and Modals
+  const [packs, setPacks] = useState<ExtensionPack[]>(AVAILABLE_PACKS);
+  const [showMarketplace, setShowMarketplace] = useState(false);
+  const [showExportWizard, setShowExportWizard] = useState(false);
+  const [openFile, setOpenFile] = useState<FileSystemItem | null>(null);
+
   // Game State
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -134,28 +184,6 @@ const App: React.FC = () => {
                   return { ...actor, transform: { ...actor.transform, x, y, z, rotation } };
               }
           }
-
-          // --- Door Logic ---
-          if (actor.type === ActorType.DOOR) {
-              const player = currentActors.find(a => a.type === ActorType.CHARACTER);
-              if (player) {
-                  const dx = player.transform.x - actor.transform.x;
-                  const dy = player.transform.y - actor.transform.y;
-                  const dist = Math.sqrt(dx*dx + dy*dy);
-
-                  // Open if player is close (within 120 units)
-                  const targetRot = dist < 120 ? 90 : 0;
-                  const currentRot = actor.transform.rotation;
-
-                  // Simple Lerp for smooth opening/closing
-                  if (Math.abs(targetRot - currentRot) > 0.5) {
-                      const newRot = currentRot + (targetRot - currentRot) * 5 * dt;
-                      hasChanges = true;
-                      return { ...actor, transform: { ...actor.transform, rotation: newRot } };
-                  }
-              }
-          }
-
           return actor;
       });
 
@@ -209,21 +237,73 @@ const App: React.FC = () => {
   };
 
   const handleDownloadProject = () => {
+      // Trigger the Export Wizard Flow
+      setShowExportWizard(true);
+  };
+
+  const handleFinalizeExport = async (settings: ExportSettings) => {
+      addLog('Packaging project... please wait.', 'info');
+      
+      const zip = new JSZip();
+
+      // 1. Create Project JSON
       const projectData = {
-          version: '1.0',
-          timestamp: new Date().toISOString(),
-          actors: actors
+          version: '5.0.0',
+          metadata: settings,
+          actors: actors,
+          timestamp: new Date().toISOString()
       };
-      const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `WebUnrealProject_${Date.now()}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      addLog('Project downloaded successfully.', 'success');
+      zip.file(`${settings.projectName}.uproject`, JSON.stringify(projectData, null, 2));
+
+      // 2. Add File System Content
+      // Recursive function to add items to zip folders
+      const addToZip = (parentId: string | null, currentZipFolder: any) => {
+          const children = fileSystemItems.filter(i => i.parentId === parentId);
+          children.forEach(child => {
+             if (child.type === 'folder') {
+                 const newFolder = currentZipFolder.folder(child.name);
+                 addToZip(child.id, newFolder);
+             } else {
+                 let ext = 'txt';
+                 if (child.type === 'cpp') ext = 'cpp';
+                 if (child.type === 'python') ext = 'py';
+                 if (child.type === 'blueprint') ext = 'uasset';
+                 currentZipFolder.file(`${child.name}.${ext}`, child.content || '');
+             }
+          });
+      };
+      
+      const contentFolder = zip.folder('Content');
+      addToZip('root', contentFolder);
+
+      // 3. Add Simulated Build Artifact based on type
+      const buildFolder = zip.folder('Build');
+      if (settings.type === 'Game') {
+          buildFolder?.file(`${settings.projectName}.exe`, 'BINARY_GAME_DATA_MOCK');
+          buildFolder?.file(`${settings.projectName}_Data.pak`, 'ASSET_DATA_MOCK');
+      } else if (settings.type === 'Video') {
+          buildFolder?.file(`${settings.projectName}_Sequence.mp4`, 'VIDEO_DATA_MOCK');
+      } else if (settings.type === 'HTML5') {
+          buildFolder?.file('index.html', '<html><body>Game Loaded</body></html>');
+      }
+
+      // 4. Generate and Download
+      try {
+          const blob = await zip.generateAsync({type: "blob"});
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${settings.projectName}_Package.zip`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          
+          addLog('Packaging complete. Download started.', 'success');
+          setShowExportWizard(false);
+      } catch (e) {
+          addLog('Failed to generate zip package.', 'error');
+      }
   };
 
   const triggerFileUpload = () => {
@@ -238,7 +318,7 @@ const App: React.FC = () => {
 
       const reader = new FileReader();
       
-      if (file.name.endsWith('.json')) {
+      if (file.name.endsWith('.json') || file.name.endsWith('.uproject')) {
           reader.onload = (event) => {
               try {
                   const content = event.target?.result as string;
@@ -264,21 +344,55 @@ const App: React.FC = () => {
            reader.readAsDataURL(file); // Just read it to simulate activity
       }
       
-      // Reset input
       e.target.value = '';
   };
 
+  const handleInstallPack = (packId: string) => {
+      setPacks(packs.map(p => p.id === packId ? { ...p, installed: true } : p));
+      addLog(`Pack Installed: ${packs.find(p => p.id === packId)?.name}`, 'success');
+  };
+
   const selectedActor = actors.find(a => a.id === selectedActorId) || null;
+  const installedPackIds = packs.filter(p => p.installed).map(p => p.id);
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-[#121212] overflow-hidden font-sans">
+    <div className="flex flex-col h-screen w-screen bg-[#121212] overflow-hidden font-sans relative">
       <input 
         type="file" 
         ref={fileInputRef} 
         onChange={handleFileChange} 
         className="hidden" 
-        accept=".json, .png, .jpg, .txt, .js, .cpp"
+        accept=".json, .png, .jpg, .txt, .js, .cpp, .uproject"
       />
+
+      {/* Modals */}
+      {showMarketplace && (
+          <Marketplace 
+            packs={packs} 
+            onInstall={handleInstallPack} 
+            onClose={() => setShowMarketplace(false)} 
+          />
+      )}
+      
+      {showExportWizard && (
+          <ExportWizard 
+             onClose={() => setShowExportWizard(false)}
+             onFinalize={handleFinalizeExport}
+          />
+      )}
+
+      {openFile && (
+          <CodeEditor 
+            file={openFile}
+            onSave={(id, content) => {
+                // Update file content in FileSystem state
+                setFileSystemItems(prev => prev.map(f => f.id === id ? { ...f, content } : f));
+                addLog(`File ${openFile.name} saved and compiled.`, 'success');
+                setOpenFile(null);
+            }}
+            onClose={() => setOpenFile(null)}
+          />
+      )}
 
       {projectLoaded ? (
          <>
@@ -306,13 +420,6 @@ const App: React.FC = () => {
                </div>
                <div className="p-2 rounded hover:bg-[#333] cursor-pointer hover:text-neutral-200 transition-colors" title="Foliage Mode">
                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 2C7 2 3 7 3 12c0 5 7 10 7 10s4-6 4-10c0-2-2-4-2-4s2 1 2 4c0 1-1 2-2 3 0-5 2-7 5-7 2 0 3 2 3 5 0 2-2 5-2 5s5-3 5-7c0-4-6-9-11-9z"/></svg>
-               </div>
-               <div className="p-2 rounded hover:bg-[#333] cursor-pointer hover:text-neutral-200 transition-colors" title="Mesh Paint Mode">
-                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 9h-2V7h-2v5H6v2h2v5h2v-5h2v-2z"/></svg>
-               </div>
-               <div className="h-[1px] w-8 bg-neutral-700 my-2"></div>
-               <div className="p-2 rounded hover:bg-[#333] cursor-pointer hover:text-neutral-200 transition-colors" title="Cube Grid">
-                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M21 16.5c0 .38-.21.71-.53.88l-7.9 4.44c-.16.12-.36.18-.57.18-.21 0-.41-.06-.57-.18l-7.9-4.44A.991.991 0 0 1 3 16.5v-9c0-.38.21-.71.53-.88l7.9-4.44c.16-.12.36-.18.57-.18.21 0 .41.06.57.18l7.9 4.44c.32.17.53.5.53.88v9zM12 4.15L6.04 7.5 12 10.85l5.96-3.35L12 4.15z"/></svg>
                </div>
             </div>
 
@@ -354,7 +461,13 @@ const App: React.FC = () => {
                {/* Bottom Content Browser / Console Split */}
                <div className="h-72 border-t border-black flex">
                   <div className="flex-1 border-r border-black">
-                      <ContentBrowser />
+                      <ContentBrowser 
+                        installedPacks={installedPackIds}
+                        onOpenMarketplace={() => setShowMarketplace(true)}
+                        onOpenFile={setOpenFile}
+                        items={fileSystemItems}
+                        setItems={setFileSystemItems}
+                      />
                   </div>
                   <div className="w-1/3 min-w-[300px]">
                       <Console logs={logs} />

@@ -47,3 +47,31 @@ export enum ProjectTemplate {
   PROGRAM = 'Program',
   BLANK = 'Blank',
 }
+
+// --- New File System Types ---
+
+export type FileType = 'folder' | 'blueprint' | 'cpp' | 'python' | 'material' | 'texture' | 'text' | 'javascript';
+
+export interface FileSystemItem {
+  id: string;
+  parentId: string | null;
+  name: string;
+  type: FileType;
+  content?: string; // For text/code files
+  isLocked?: boolean; // Requires a pack
+}
+
+export interface ClipboardItem {
+  action: 'copy' | 'cut';
+  item: FileSystemItem;
+}
+
+export interface ExtensionPack {
+  id: string;
+  name: string;
+  description: string;
+  icon: React.ReactNode;
+  price: string; // "Free" or amount
+  features: string[];
+  installed: boolean;
+}

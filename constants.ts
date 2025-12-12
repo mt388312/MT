@@ -1,4 +1,4 @@
-import { ActorType, Actor } from './types';
+import { ActorType, Actor, FileSystemItem } from './types';
 
 export const INITIAL_ACTORS: Actor[] = [
   {
@@ -50,4 +50,13 @@ export const MOCK_ASSETS = [
   { name: 'BP_Character', type: 'Blueprint' },
   { name: 'T_Wood_D', type: 'Texture' },
   { name: 'T_Wood_N', type: 'Texture' },
+];
+
+export const INITIAL_FILE_SYSTEM: FileSystemItem[] = [
+  { id: 'root', parentId: null, name: 'Content', type: 'folder' },
+  { id: 'starter', parentId: 'root', name: 'StarterContent', type: 'folder' },
+  { id: 'blueprints', parentId: 'root', name: 'Blueprints', type: 'folder' },
+  { id: 'maps', parentId: 'root', name: 'Maps', type: 'folder' },
+  { id: 'bp_char', parentId: 'blueprints', name: 'ThirdPersonCharacter', type: 'blueprint' },
+  { id: 'map_main', parentId: 'maps', name: 'MainMap', type: 'text', content: 'Map Data...' },
 ];
