@@ -1,0 +1,5 @@
+{
+  "name": "WebUnreal 5",
+  "description": "A browser-based game engine interface simulating Unreal Engine 5. Features an interactive viewport, scene outliner, details panel, and AI-powered level generation using Gemini.",
+  "requestFramePermissions": []
+}
