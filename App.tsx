@@ -21,6 +21,9 @@ const App: React.FC = () => {
   // Game State
   const [isPlaying, setIsPlaying] = useState(false);
 
+  // File Input Ref
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Refs for Game Loop
   const actorsRef = useRef(actors);
   const isPlayingRef = useRef(isPlaying);
@@ -223,97 +226,149 @@ const App: React.FC = () => {
       addLog('Project downloaded successfully.', 'success');
   };
 
-  const selectedActor = actors.find(a => a.id === selectedActorId) || null;
+  const triggerFileUpload = () => {
+      if (fileInputRef.current) {
+          fileInputRef.current.click();
+      }
+  };
 
-  // Render Project Hub if not loaded
-  if (!projectLoaded) {
-      return <ProjectHub onSelectTemplate={handleTemplateSelect} />;
-  }
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      
+      if (file.name.endsWith('.json')) {
+          reader.onload = (event) => {
+              try {
+                  const content = event.target?.result as string;
+                  const data = JSON.parse(content);
+                  
+                  if (data.actors && Array.isArray(data.actors)) {
+                      setActors(data.actors);
+                      setProjectLoaded(true);
+                      addLog(`Project "${file.name}" loaded successfully.`, 'success');
+                  } else {
+                      addLog('Invalid project file format: missing actors array.', 'error');
+                  }
+              } catch (err) {
+                  addLog('Failed to parse project file.', 'error');
+              }
+          };
+          reader.readAsText(file);
+      } else {
+           // Handle "other files" - mocked for now
+           reader.onload = () => {
+               addLog(`File "${file.name}" imported. (Asset import simulation)`, 'info');
+           };
+           reader.readAsDataURL(file); // Just read it to simulate activity
+      }
+      
+      // Reset input
+      e.target.value = '';
+  };
+
+  const selectedActor = actors.find(a => a.id === selectedActorId) || null;
 
   return (
     <div className="flex flex-col h-screen w-screen bg-[#121212] overflow-hidden font-sans">
-      <TopToolbar 
-          isPlaying={isPlaying} 
-          onTogglePlay={() => {
-              if (isPlaying) addLog('Simulation Stopped.', 'warning');
-              else addLog('Simulation Started. Controls active.', 'success');
-              setIsPlaying(!isPlaying);
-          }}
-          onDownload={handleDownloadProject}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileChange} 
+        className="hidden" 
+        accept=".json, .png, .jpg, .txt, .js, .cpp"
       />
 
-      {/* Main Workspace Grid */}
-      <div className="flex-1 flex overflow-hidden">
-        
-        {/* Left Toolbar / Modes (Simplified vertical strip) */}
-        <div className="w-10 bg-[#1e1e1e] border-r border-neutral-700 flex flex-col items-center py-2 space-y-4 text-neutral-400">
-           <div className="p-2 rounded bg-orange-500/20 text-orange-500 cursor-pointer"><svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg></div>
-           <div className="p-2 rounded hover:bg-[#333] cursor-pointer"><svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M14 6l-3.75 5 2.85 3.8-1.6 1.2C9.81 13.75 7 10 7 10l-6 8h22L14 6z"/></svg></div>
-           <div className="p-2 rounded hover:bg-[#333] cursor-pointer"><svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 9h-2V7h-2v5H6v2h2v5h2v-5h2v-2z"/></svg></div>
-        </div>
+      {projectLoaded ? (
+         <>
+          <TopToolbar 
+              isPlaying={isPlaying} 
+              onTogglePlay={() => {
+                  if (isPlaying) addLog('Simulation Stopped.', 'warning');
+                  else addLog('Simulation Started. Controls active.', 'success');
+                  setIsPlaying(!isPlaying);
+              }}
+              onDownload={handleDownloadProject}
+              onOpen={triggerFileUpload}
+          />
 
-        {/* Center Viewport */}
-        <div className="flex-1 flex flex-col relative">
-           {/* AI Prompt Overlay */}
-           {!isPlaying && (
-               <div className="absolute top-10 left-1/2 transform -translate-x-1/2 z-20 w-96 max-w-full">
-                  <div className="bg-[#111]/90 backdrop-blur border border-neutral-600 rounded-lg p-1 flex shadow-2xl">
-                     <input 
-                       type="text" 
-                       value={prompt}
-                       onChange={(e) => setPrompt(e.target.value)}
-                       placeholder="Describe a level to generate... (e.g. 'A stone circle with 5 candles')"
-                       className="bg-transparent text-xs text-white p-2 flex-1 focus:outline-none placeholder-neutral-500"
-                       onKeyDown={(e) => e.key === 'Enter' && handleGenerateLevel()}
-                     />
-                     <button 
-                       onClick={handleGenerateLevel}
-                       disabled={isAiLoading}
-                       className="bg-orange-600 hover:bg-orange-500 text-white text-xs px-3 py-1 rounded font-bold transition-colors disabled:opacity-50"
-                     >
-                       {isAiLoading ? 'Busy...' : 'Generate'}
-                     </button>
+          {/* Main Workspace Grid */}
+          <div className="flex-1 flex overflow-hidden">
+            
+            {/* Left Toolbar / Modes (Simplified vertical strip) */}
+            <div className="w-10 bg-[#1e1e1e] border-r border-neutral-700 flex flex-col items-center py-2 space-y-4 text-neutral-400">
+               <div className="p-2 rounded bg-orange-500/20 text-orange-500 cursor-pointer"><svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg></div>
+               <div className="p-2 rounded hover:bg-[#333] cursor-pointer"><svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M14 6l-3.75 5 2.85 3.8-1.6 1.2C9.81 13.75 7 10 7 10l-6 8h22L14 6z"/></svg></div>
+               <div className="p-2 rounded hover:bg-[#333] cursor-pointer"><svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 9h-2V7h-2v5H6v2h2v5h2v-5h2v-2z"/></svg></div>
+            </div>
+
+            {/* Center Viewport */}
+            <div className="flex-1 flex flex-col relative">
+               {/* AI Prompt Overlay */}
+               {!isPlaying && (
+                   <div className="absolute top-10 left-1/2 transform -translate-x-1/2 z-20 w-96 max-w-full">
+                      <div className="bg-[#111]/90 backdrop-blur border border-neutral-600 rounded-lg p-1 flex shadow-2xl">
+                         <input 
+                           type="text" 
+                           value={prompt}
+                           onChange={(e) => setPrompt(e.target.value)}
+                           placeholder="Describe a level to generate... (e.g. 'A stone circle with 5 candles')"
+                           className="bg-transparent text-xs text-white p-2 flex-1 focus:outline-none placeholder-neutral-500"
+                           onKeyDown={(e) => e.key === 'Enter' && handleGenerateLevel()}
+                         />
+                         <button 
+                           onClick={handleGenerateLevel}
+                           disabled={isAiLoading}
+                           className="bg-orange-600 hover:bg-orange-500 text-white text-xs px-3 py-1 rounded font-bold transition-colors disabled:opacity-50"
+                         >
+                           {isAiLoading ? 'Busy...' : 'Generate'}
+                         </button>
+                      </div>
+                   </div>
+               )}
+
+               <Viewport 
+                 actors={actors} 
+                 onSelect={handleSelectActor} 
+                 onUpdatePosition={handleUpdatePosition} 
+                 isPlaying={isPlaying}
+               />
+               
+               {/* Bottom Content Browser / Console Split */}
+               <div className="h-64 border-t border-neutral-700 flex">
+                  <div className="flex-1 border-r border-neutral-700">
+                      <ContentBrowser />
+                  </div>
+                  <div className="w-1/3">
+                      <Console logs={logs} />
                   </div>
                </div>
-           )}
+            </div>
 
-           <Viewport 
-             actors={actors} 
-             onSelect={handleSelectActor} 
-             onUpdatePosition={handleUpdatePosition} 
-             isPlaying={isPlaying}
-           />
-           
-           {/* Bottom Content Browser / Console Split */}
-           <div className="h-64 border-t border-neutral-700 flex">
-              <div className="flex-1 border-r border-neutral-700">
-                  <ContentBrowser />
-              </div>
-              <div className="w-1/3">
-                  <Console logs={logs} />
-              </div>
-           </div>
-        </div>
+            {/* Right Sidebar */}
+            <div className="w-80 border-l border-neutral-700 flex flex-col bg-[#1a1a1a]">
+               <div className="h-1/2 border-b border-neutral-700">
+                  <Outliner actors={actors} onSelect={handleSelectActor} />
+               </div>
+               <div className="h-1/2">
+                  <DetailsPanel actor={selectedActor} onUpdate={handleUpdateActor} />
+               </div>
+            </div>
 
-        {/* Right Sidebar */}
-        <div className="w-80 border-l border-neutral-700 flex flex-col bg-[#1a1a1a]">
-           <div className="h-1/2 border-b border-neutral-700">
-               <Outliner actors={actors} onSelect={handleSelectActor} />
-           </div>
-           <div className="h-1/2">
-               <DetailsPanel actor={selectedActor} onUpdate={handleUpdateActor} />
-           </div>
-        </div>
+          </div>
 
-      </div>
-
-      {/* Footer Status Bar */}
-      <div className="h-6 bg-[#2e2e2e] text-[10px] text-neutral-400 flex items-center px-2 space-x-4 border-t border-neutral-600">
-         <span>{isPlaying ? 'PLAYING IN EDITOR' : 'Ready'}</span>
-         <span className="flex-1"></span>
-         <span>Source Control: Off</span>
-         <span>Compiling Shaders (2,403 left)...</span>
-      </div>
+          {/* Footer Status Bar */}
+          <div className="h-6 bg-[#2e2e2e] text-[10px] text-neutral-400 flex items-center px-2 space-x-4 border-t border-neutral-600">
+             <span>{isPlaying ? 'PLAYING IN EDITOR' : 'Ready'}</span>
+             <span className="flex-1"></span>
+             <span>Source Control: Off</span>
+             <span>Compiling Shaders (2,403 left)...</span>
+          </div>
+         </>
+      ) : (
+          <ProjectHub onSelectTemplate={handleTemplateSelect} onOpenProject={triggerFileUpload} />
+      )}
     </div>
   );
 };

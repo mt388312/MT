@@ -3,6 +3,7 @@ import { ProjectTemplate } from '../types';
 
 interface ProjectHubProps {
   onSelectTemplate: (template: ProjectTemplate) => void;
+  onOpenProject: () => void;
 }
 
 const TEMPLATES = [
@@ -43,7 +44,7 @@ const TEMPLATES = [
   }
 ];
 
-export const ProjectHub: React.FC<ProjectHubProps> = ({ onSelectTemplate }) => {
+export const ProjectHub: React.FC<ProjectHubProps> = ({ onSelectTemplate, onOpenProject }) => {
   return (
     <div className="fixed inset-0 bg-[#121212] z-50 flex flex-col text-neutral-200 font-sans">
       <div className="p-8 border-b border-neutral-800 flex items-center space-x-4">
@@ -56,6 +57,14 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({ onSelectTemplate }) => {
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
         <div className="w-64 bg-[#1a1a1a] border-r border-neutral-800 p-4 space-y-2">
+            <button 
+                onClick={onOpenProject}
+                className="w-full bg-[#333] hover:bg-[#444] text-white p-3 rounded mb-6 flex items-center justify-center font-bold border border-neutral-600 transition-colors"
+            >
+                <svg className="w-4 h-4 mr-2 fill-current" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+                Open Project...
+            </button>
+
             <div className="font-bold text-neutral-500 uppercase text-xs mb-4">Recent Projects</div>
             <div className="p-2 bg-[#262626] rounded text-sm text-white cursor-pointer">MyProject_01</div>
             <div className="p-2 hover:bg-[#262626] rounded text-sm text-neutral-400 cursor-pointer">Alien_World_Test</div>
